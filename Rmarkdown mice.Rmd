@@ -1,0 +1,195 @@
+---
+title: "Imputation of missing values using package(mice)"
+author: "Nivedita Kowlagi"
+date: "19/10/2019"
+output: html_document
+---
+Data Set Information :
+What's inside is more than just rows and columns. Make it easy for others to get started by describing how you acquired the data and what time period it represents, too. Missing data is a significant problem in this dataset. Because the amount of training data in this competition is so small, filling in this missing data is crucial to earning a good score on the leaderboard. 
+
+Objective :
+Filling in missing data in this dataset is not so trivial. Some of the variables have missing data for almost every observation. 
+Some variables have a considerable number of missing values. And some variables have only a small number of missing values. 
+With the assistance of the mice package, we are going to do some extensive imputation on this dataset.
+
+Understanding Data set : 
+SalePrice : the property's sale price in dollars. This is the target variable that you're trying to predict.
+MSSubClass : The building class
+MSZoning : The general zoning classification
+LotFrontage : Linear feet of street connected to property
+LotArea : Lot size in square feet
+Street : Type of road access
+Alley : Type of alley access
+LotShape : General shape of property
+LandContour : Flatness of the property
+Utilities : Type of utilities available
+LotConfig : Lot configuration
+LandSlope : Slope of property
+Neighborhood : Physical locations within Ames city limits
+Condition1 : Proximity to main road or railroad
+Condition2 : Proximity to main road or railroad (if a second is present)
+BldgType : Type of dwelling
+HouseStyle : Style of dwelling
+OverallQual : Overall material and finish quality
+OverallCond : Overall condition rating
+YearBuilt : Original construction date
+YearRemodAdd : Remodel date
+RoofStyle : Type of roof
+RoofMatl : Roof material
+Exterior1st : Exterior covering on house
+Exterior2nd : Exterior covering on house (if more than one material)
+MasVnrType : Masonry veneer type
+MasVnrArea : Masonry veneer area in square feet
+ExterQual : Exterior material quality
+ExterCond : Present condition of the material on the exterior
+Foundation : Type of foundation
+BsmtQual : Height of the basement
+BsmtCond : General condition of the basement
+BsmtExposure : Walkout or garden level basement walls
+BsmtFinType1 : Quality of basement finished area
+BsmtFinSF1 : Type 1 finished square feet
+BsmtFinType2 : Quality of second finished area (if present)
+BsmtFinSF2 : Type 2 finished square feet
+BsmtUnfSF : Unfinished square feet of basement area
+TotalBsmtSF : Total square feet of basement area
+Heating : Type of heating
+HeatingQC : Heating quality and condition
+CentralAir : Central air conditioning
+Electrical : Electrical system
+1stFlrSF : First Floor square feet
+2ndFlrSF : Second floor square feet
+LowQualFinSF : Low quality finished square feet (all floors)
+GrLivArea : Above grade (ground) living area square feet
+BsmtFullBath : Basement full bathrooms
+BsmtHalfBath : Basement half bathrooms
+FullBath : Full bathrooms above grade
+HalfBath : Half baths above grade
+Bedroom : Number of bedrooms above basement level
+Kitchen : Number of kitchens
+KitchenQual : Kitchen quality
+TotRmsAbvGrd : Total rooms above grade (does not include bathrooms)
+Functional : Home functionality rating
+Fireplaces : Number of fireplaces
+FireplaceQu : Fireplace quality
+GarageType : Garage location
+GarageYrBlt : Year garage was built
+GarageFinish : Interior finish of the garage
+GarageCars : Size of garage in car capacity
+GarageArea : Size of garage in square feet
+GarageQual : Garage quality
+GarageCond : Garage condition
+PavedDrive : Paved driveway
+WoodDeckSF : Wood deck area in square feet
+OpenPorchSF: Open porch area in square feet
+EnclosedPorch : Enclosed porch area in square feet
+3SsnPorch : Three season porch area in square feet
+ScreenPorch : Screen porch area in square feet
+PoolArea : Pool area in square feet
+PoolQC : Pool quality
+Fence : Fence quality
+MiscFeature : Miscellaneous feature not covered in other categories
+MiscVal : Value of miscellaneous feature
+MoSold : Month Sold
+YrSold : Year Sold
+SaleType : Type of sale
+SaleCondition : Condition of sale
+
+Loading the Data :
+```{r}
+train<- read.csv("F:/Extracted files/train.csv",header = T)
+head(train,5)
+```
+
+Convert some relevant columns into Factor variable and check summary and str :
+```{r}
+train$MSSubClass <- as.factor(train$MSSubClass)
+train$MoSold <- as.factor(train$MoSold)
+train$YrSold <- as.factor(train$YrSold)
+summary(train)
+str(train)
+```
+
+checking how many data is missing by visualisation using mismap function from Amelia package :
+```{r}
+library(Amelia)
+library(Rcpp)
+missmap(train[-1], col=c('red', 'green'), y.cex=0.5, x.cex=0.8)
+```
+
+checking NA values and get them in decreasing order :
+```{r}
+colSums(is.na(train))
+```
+
+Excluding the variables which have more than 50% of the data NA/ subsetting :  
+```{r}
+exclude <- c('PoolQC', 'MiscFeature', 'Alley', 'Fence')
+include<-setdiff(names(train), exclude)
+train1<- train[include]
+```
+
+Checking if the variables are excluded or not : 
+```{r}
+str(train)
+head(train,3)
+```
+
+
+Using correlation and regression method with mice package for train data with 
+m=rounds of imputation we want to do, 
+method= correlation and regression, 
+printflag = If TRUE, mice will print history on console. 
+Use 
+printflag = FALSE, for silent computation.
+```{r}
+library(mice)
+library(lattice)
+library(ggplot2)
+mice.train <- mice(train, m=1, method="cart", printFlag=FALSE)
+```
+
+Plot on x-y axis as LotArea on x axis & LotFrontage on y axis :
+The imputed data (in red) appear to have a similar relationship to LotArea as the actual data (in blue).
+```{r}
+xyplot(mice.train, LotFrontage ~ LotArea)
+
+```
+
+Let's look at the distribution of the imputed data with density plot
+```{r}
+densityplot(mice.train, ~LotFrontage)
+```
+
+Compare to how this would look if we had used a simple mean to replace NAs. 
+Here we do the same, except we tell the mice function that we want to use the simple mean for imputing NAs in numeric columns :
+```{r}
+mice.train_mean <- mice(train, 
+                           m=1, 
+                           defaultMethod=c('mean', 'cart', 'cart', 'cart'),
+                           printFlag=FALSE)
+```
+
+Getting back to the original imputed data set, let's see if the imputed factor data make sense: 
+```{r}
+table(train$GarageType) 
+table(mice.train$imp$GarageType)
+table(train$GarageFinish)
+table(mice.train$mice.GarageFinish)
+table(train$BsmtExposure)
+table(mice.train$mice.BsmtExposure)
+str(train$GarageFinish)
+```
+
+The last step is to merge them into our original data set. We can do this easily with the complete() function:
+```{r}
+train_complete <- complete(mice.train)
+```
+
+Confirm no NAs in the data and check our data for 100% observed values with 0% missing values with mismap() function :
+```{r}
+colSums(is.na(train_complete))
+missmap(train_complete[-1], col=c('red', 'green'), y.cex=0.5, x.cex=0.8)
+```
+
+Conclusion :
+No more missing values in the data set. Hence using visualizations with mice function will help you to compute missing values in the data set. 
